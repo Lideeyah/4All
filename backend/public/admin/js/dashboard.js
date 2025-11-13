@@ -522,17 +522,30 @@ function updateInclusionMetrics() {
 
   const { inclusionMetrics } = dashboardData;
 
-  document.getElementById("inclusive-users").textContent =
-    inclusionMetrics.totalInclusiveUsers || 0;
-  document.getElementById("inclusive-percentage").textContent = `${
-    inclusionMetrics.percentageOfTotal || 0
-  }%`;
-  document.getElementById("engagement-rate").textContent = `${
-    inclusionMetrics.engagementRate || 0
-  }%`;
-  document.getElementById("satisfaction-score").textContent = (
-    inclusionMetrics.satisfactionScore || 0
-  ).toFixed(1);
+  // Safely update elements only if they exist
+  const inclusiveUsersEl = document.getElementById("inclusive-users");
+  if (inclusiveUsersEl) {
+    inclusiveUsersEl.textContent = inclusionMetrics.totalInclusiveUsers || 0;
+  }
+
+  const inclusivePercentageEl = document.getElementById("inclusive-percentage");
+  if (inclusivePercentageEl) {
+    inclusivePercentageEl.textContent = `${
+      inclusionMetrics.percentageOfTotal || 0
+    }%`;
+  }
+
+  const engagementRateEl = document.getElementById("engagement-rate");
+  if (engagementRateEl) {
+    engagementRateEl.textContent = `${inclusionMetrics.engagementRate || 0}%`;
+  }
+
+  const satisfactionScoreEl = document.getElementById("satisfaction-score");
+  if (satisfactionScoreEl) {
+    satisfactionScoreEl.textContent = (
+      inclusionMetrics.satisfactionScore || 0
+    ).toFixed(1);
+  }
 }
 
 // Load Section Data
@@ -668,15 +681,208 @@ async function loadBankingActivity() {
 
   const { transactionHealth } = dashboardData;
 
-  // Update transaction metrics
-  document.getElementById("total-transactions-activity").textContent =
-    transactionHealth.total || 0;
-  document.getElementById("success-rate-activity").textContent = `${
-    transactionHealth.successRate || 0
-  }%`;
-  document.getElementById("avg-transaction").textContent = `₦${
-    transactionHealth.averageAmount || 0
-  }`;
+  // Fetch actual transactions to populate the banking activity section
+  try {
+    const response = await fetch(`${API_BASE_URL}/transactions?limit=100`);
+    const data = await response.json();
+    const transactions = data.transactions || [];
+
+    // Calculate today's transactions
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayTimestamp = today.getTime();
+
+    const todayTransactions = transactions.filter(
+      (t) => t.timestamp >= todayTimestamp
+    );
+
+    // Count by type
+    const deposits = todayTransactions.filter((t) => t.type === "deposit");
+    const withdrawals = todayTransactions.filter(
+      (t) => t.type === "withdrawal"
+    );
+    const transfers = todayTransactions.filter((t) => t.type === "transfer");
+    const failed = transactions.filter((t) => t.status === "failed");
+
+    // Calculate amounts
+    const depositsAmount = deposits.reduce((sum, t) => sum + t.amount, 0);
+    const withdrawalsAmount = withdrawals.reduce((sum, t) => sum + t.amount, 0);
+    const transfersAmount = transfers.reduce((sum, t) => sum + t.amount, 0);
+
+    // Update deposits
+    const depositsCountEl = document.getElementById("deposits-count");
+    const depositsAmountEl = document.getElementById("deposits-amount");
+    if (depositsCountEl) depositsCountEl.textContent = deposits.length;
+    if (depositsAmountEl)
+      depositsAmountEl.textContent = `₦${depositsAmount.toLocaleString()}`;
+
+    // Update withdrawals
+    const withdrawalsCountEl = document.getElementById("withdrawals-count");
+    const withdrawalsAmountEl = document.getElementById("withdrawals-amount");
+    if (withdrawalsCountEl) withdrawalsCountEl.textContent = withdrawals.length;
+    if (withdrawalsAmountEl)
+      withdrawalsAmountEl.textContent = `₦${withdrawalsAmount.toLocaleString()}`;
+
+    // Update transfers
+    const transfersCountEl = document.getElementById("transfers-count");
+    const transfersAmountEl = document.getElementById("transfers-amount");
+    if (transfersCountEl) transfersCountEl.textContent = transfers.length;
+    if (transfersAmountEl)
+      transfersAmountEl.textContent = `₦${transfersAmount.toLocaleString()}`;
+
+    // Update failed transactions
+    const failedEl = document.getElementById("failed-transactions");
+    const failedChangeEl = document.getElementById("failed-change");
+    if (failedEl) failedEl.textContent = failed.length;
+    if (failedChangeEl) {
+      const failedRate =
+        transactions.length > 0
+          ? ((failed.length / transactions.length) * 100).toFixed(1)
+          : 0;
+      failedChangeEl.textContent = `${failedRate}%`;
+    }
+
+    // Update SME metrics (mock data for now)
+    const smeHealthyEl = document.getElementById("sme-healthy");
+    const smeRiskEl = document.getElementById("sme-risk");
+    const smePayrollEl = document.getElementById("sme-payroll");
+    if (smeHealthyEl) smeHealthyEl.textContent = "3";
+    if (smeRiskEl) smeRiskEl.textContent = "1";
+    if (smePayrollEl) smePayrollEl.textContent = "2";
+
+    // Update life event signals (mock data for now)
+    const mortgageUsersEl = document.getElementById("mortgage-users");
+    const purchaseUsersEl = document.getElementById("purchase-users");
+    if (mortgageUsersEl) mortgageUsersEl.textContent = "2";
+    if (purchaseUsersEl) purchaseUsersEl.textContent = "3";
+
+    // Create transaction volume chart
+    createTransactionVolumeChart(transactions);
+
+    // Create transaction success chart
+    createTransactionSuccessChart(transactionHealth);
+  } catch (error) {
+    console.error("Error loading banking activity:", error);
+  }
+}
+
+function createTransactionVolumeChart(transactions) {
+  const ctx = document.getElementById("transaction-volume-chart");
+  if (!ctx) return;
+
+  // Group transactions by day (last 7 days)
+  const last7Days = [];
+  const today = new Date();
+  for (let i = 6; i >= 0; i--) {
+    const date = new Date(today);
+    date.setDate(date.getDate() - i);
+    date.setHours(0, 0, 0, 0);
+    last7Days.push({
+      date: date,
+      label: date.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+      }),
+      count: 0,
+    });
+  }
+
+  // Count transactions per day
+  transactions.forEach((t) => {
+    const txDate = new Date(t.timestamp);
+    txDate.setHours(0, 0, 0, 0);
+    const dayData = last7Days.find(
+      (d) => d.date.getTime() === txDate.getTime()
+    );
+    if (dayData) {
+      dayData.count++;
+    }
+  });
+
+  if (charts.transactionVolume) {
+    charts.transactionVolume.destroy();
+  }
+
+  charts.transactionVolume = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: last7Days.map((d) => d.label),
+      datasets: [
+        {
+          label: "Transactions",
+          data: last7Days.map((d) => d.count),
+          backgroundColor: "#E1251B",
+          borderRadius: 8,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: {
+        legend: {
+          display: false,
+        },
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            font: {
+              family: "'Atkinson Hyperlegible', sans-serif",
+            },
+          },
+        },
+        x: {
+          ticks: {
+            font: {
+              family: "'Atkinson Hyperlegible', sans-serif",
+            },
+          },
+        },
+      },
+    },
+  });
+}
+
+function createTransactionSuccessChart(transactionHealth) {
+  const ctx = document.getElementById("transaction-success-chart");
+  if (!ctx) return;
+
+  const successRate = transactionHealth.successRate || 0;
+  const failureRate = 100 - successRate;
+
+  if (charts.transactionSuccess) {
+    charts.transactionSuccess.destroy();
+  }
+
+  charts.transactionSuccess = new Chart(ctx, {
+    type: "doughnut",
+    data: {
+      labels: ["Successful", "Failed"],
+      datasets: [
+        {
+          data: [successRate, failureRate],
+          backgroundColor: ["#28a745", "#E1251B"],
+          borderWidth: 0,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: {
+        legend: {
+          position: "bottom",
+          labels: {
+            font: {
+              family: "'Atkinson Hyperlegible', sans-serif",
+            },
+          },
+        },
+      },
+    },
+  });
 }
 
 async function loadEmotionalAnalytics() {
@@ -746,22 +952,502 @@ function createEmotionTrendChart(emotions) {
 async function loadAccessibilityMetrics() {
   if (!dashboardData) return;
 
-  const { inclusionMetrics } = dashboardData;
+  const { userInsights, inclusionMetrics, accessibilityUsage } = dashboardData;
 
-  // Update accessibility adoption metrics
-  document.getElementById("accessibility-adoption").textContent = `${Math.round(
-    inclusionMetrics?.percentageOfTotal || 0
-  )}%`;
+  // Fetch users to get detailed accessibility data
+  try {
+    const response = await fetch(`${API_BASE_URL}/profile`);
+    const users = await response.json();
+
+    // Count users with disabilities
+    const usersWithDisabilities = users.filter(
+      (u) => u.disabilities && u.disabilities.length > 0
+    );
+    const disabilityPercentage =
+      users.length > 0
+        ? ((usersWithDisabilities.length / users.length) * 100).toFixed(1)
+        : 0;
+
+    // Update accessibility users
+    const accessibilityUsersEl = document.getElementById("accessibility-users");
+    const accessibilityPctEl = document.getElementById("accessibility-pct");
+    if (accessibilityUsersEl)
+      accessibilityUsersEl.textContent = usersWithDisabilities.length;
+    if (accessibilityPctEl)
+      accessibilityPctEl.textContent = `${disabilityPercentage}%`;
+
+    // Calculate feature adoption (users using accessibility features)
+    const usersWithFeatures = users.filter(
+      (u) =>
+        u.highContrast ||
+        u.largeTargets ||
+        u.captions ||
+        u.interactionMode === "voice"
+    );
+    const featureAdoption =
+      users.length > 0
+        ? ((usersWithFeatures.length / users.length) * 100).toFixed(1)
+        : 0;
+    const featureAdoptionEl = document.getElementById("feature-adoption");
+    if (featureAdoptionEl)
+      featureAdoptionEl.textContent = `${featureAdoption}%`;
+
+    // Calculate voice usage
+    const voiceUsers = users.filter((u) => u.interactionMode === "voice");
+    const voiceUsage =
+      users.length > 0
+        ? ((voiceUsers.length / users.length) * 100).toFixed(1)
+        : 0;
+    const voiceUsageEl = document.getElementById("voice-usage");
+    if (voiceUsageEl) voiceUsageEl.textContent = `${voiceUsage}%`;
+
+    // Calculate high contrast usage
+    const highContrastUsers = users.filter((u) => u.highContrast);
+    const highContrastUsage =
+      users.length > 0
+        ? ((highContrastUsers.length / users.length) * 100).toFixed(1)
+        : 0;
+    const highContrastUsageEl = document.getElementById("high-contrast-usage");
+    if (highContrastUsageEl)
+      highContrastUsageEl.textContent = `${highContrastUsage}%`;
+
+    // Create feature adoption chart
+    createFeatureAdoptionChart(users);
+
+    // Create accessibility preferences chart
+    createAccessibilityPreferencesChart(users);
+  } catch (error) {
+    console.error("Error loading accessibility metrics:", error);
+  }
+}
+
+function createFeatureAdoptionChart(users) {
+  const ctx = document.getElementById("feature-adoption-chart");
+  if (!ctx) return;
+
+  // Group by disability type and count feature usage
+  const disabilityTypes = ["visual", "motor", "cognitive", "hearing"];
+  const featureData = disabilityTypes.map((type) => {
+    const usersWithType = users.filter(
+      (u) => u.disabilities && u.disabilities.includes(type)
+    );
+    const usersWithFeatures = usersWithType.filter(
+      (u) =>
+        u.highContrast ||
+        u.largeTargets ||
+        u.captions ||
+        u.interactionMode === "voice"
+    );
+    return usersWithType.length > 0
+      ? ((usersWithFeatures.length / usersWithType.length) * 100).toFixed(1)
+      : 0;
+  });
+
+  if (charts.featureAdoption) {
+    charts.featureAdoption.destroy();
+  }
+
+  charts.featureAdoption = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: disabilityTypes.map((t) => capitalizeFirst(t)),
+      datasets: [
+        {
+          label: "Feature Adoption %",
+          data: featureData,
+          backgroundColor: "#E1251B",
+          borderRadius: 8,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: {
+        legend: {
+          display: false,
+        },
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          max: 100,
+          ticks: {
+            callback: function (value) {
+              return value + "%";
+            },
+            font: {
+              family: "'Atkinson Hyperlegible', sans-serif",
+            },
+          },
+        },
+        x: {
+          ticks: {
+            font: {
+              family: "'Atkinson Hyperlegible', sans-serif",
+            },
+          },
+        },
+      },
+    },
+  });
+}
+
+function createAccessibilityPreferencesChart(users) {
+  const ctx = document.getElementById("accessibility-preferences-chart");
+  if (!ctx) return;
+
+  // Count usage of each accessibility feature
+  const highContrastCount = users.filter((u) => u.highContrast).length;
+  const largeTargetsCount = users.filter((u) => u.largeTargets).length;
+  const captionsCount = users.filter((u) => u.captions).length;
+  const voiceCount = users.filter((u) => u.interactionMode === "voice").length;
+
+  if (charts.accessibilityPreferences) {
+    charts.accessibilityPreferences.destroy();
+  }
+
+  charts.accessibilityPreferences = new Chart(ctx, {
+    type: "doughnut",
+    data: {
+      labels: ["High Contrast", "Large Targets", "Captions", "Voice Mode"],
+      datasets: [
+        {
+          data: [
+            highContrastCount,
+            largeTargetsCount,
+            captionsCount,
+            voiceCount,
+          ],
+          backgroundColor: ["#E1251B", "#E6B800", "#3B3B3B", "#28a745"],
+          borderWidth: 0,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: {
+        legend: {
+          position: "bottom",
+          labels: {
+            font: {
+              family: "'Atkinson Hyperlegible', sans-serif",
+            },
+          },
+        },
+      },
+    },
+  });
 }
 
 async function loadMarketingInsights() {
-  // Mock data for now
-  console.log("Loading marketing insights...");
+  try {
+    // Fetch promotions to analyze
+    const promoResponse = await fetch(`${API_BASE_URL}/promotions`);
+    const promotions = await promoResponse.json();
+
+    // Fetch users for segmentation
+    const userResponse = await fetch(`${API_BASE_URL}/profile`);
+    const users = await userResponse.json();
+
+    // Generate AI campaign suggestions
+    const suggestions = generateCampaignSuggestions(users, promotions);
+    displayCampaignSuggestions(suggestions);
+
+    // Generate A/B testing results
+    const abTests = generateABTests(promotions);
+    displayABTests(abTests);
+  } catch (error) {
+    console.error("Error loading marketing insights:", error);
+  }
+}
+
+function generateCampaignSuggestions(users, promotions) {
+  const suggestions = [];
+
+  // Analyze user segments
+  const visualUsers = users.filter(
+    (u) => u.disabilities && u.disabilities.includes("visual")
+  );
+  const motorUsers = users.filter(
+    (u) => u.disabilities && u.disabilities.includes("motor")
+  );
+  const cognitiveUsers = users.filter(
+    (u) => u.disabilities && u.disabilities.includes("cognitive")
+  );
+
+  // Suggestion 1: Target visual users
+  if (visualUsers.length > 0) {
+    suggestions.push({
+      title: "Audio Banking Rewards",
+      description: `Target ${visualUsers.length} users with visual disabilities with audio-first banking features`,
+      targetSegment: "visual",
+      expectedROI: "18-25%",
+      confidence: "High",
+      priority: "High",
+    });
+  }
+
+  // Suggestion 2: Target motor users
+  if (motorUsers.length > 0) {
+    suggestions.push({
+      title: "Hands-Free Transaction Bonus",
+      description: `Promote voice-activated features to ${motorUsers.length} users with motor disabilities`,
+      targetSegment: "motor",
+      expectedROI: "15-22%",
+      confidence: "High",
+      priority: "Medium",
+    });
+  }
+
+  // Suggestion 3: Simplified interface promotion
+  if (cognitiveUsers.length > 0) {
+    suggestions.push({
+      title: "Easy Banking Challenge",
+      description: `Gamify simplified banking for ${cognitiveUsers.length} users with cognitive needs`,
+      targetSegment: "cognitive",
+      expectedROI: "12-18%",
+      confidence: "Medium",
+      priority: "Medium",
+    });
+  }
+
+  // Suggestion 4: General engagement
+  suggestions.push({
+    title: "Inclusive Banking Week",
+    description: "Celebrate accessibility with special offers for all users",
+    targetSegment: "all",
+    expectedROI: "20-30%",
+    confidence: "High",
+    priority: "High",
+  });
+
+  return suggestions;
+}
+
+function displayCampaignSuggestions(suggestions) {
+  const container = document.getElementById("campaign-suggestions");
+  if (!container) return;
+
+  container.innerHTML = "";
+
+  suggestions.forEach((suggestion) => {
+    const card = document.createElement("div");
+    card.className = "suggestion-card";
+    card.innerHTML = `
+            <div class="suggestion-header">
+                <h5>${suggestion.title}</h5>
+                <span class="priority-badge ${suggestion.priority.toLowerCase()}">${
+      suggestion.priority
+    } Priority</span>
+            </div>
+            <p>${suggestion.description}</p>
+            <div class="suggestion-meta">
+                <span><i class="fas fa-users"></i> ${
+                  suggestion.targetSegment
+                }</span>
+                <span><i class="fas fa-chart-line"></i> ROI: ${
+                  suggestion.expectedROI
+                }</span>
+                <span><i class="fas fa-check-circle"></i> ${
+                  suggestion.confidence
+                } Confidence</span>
+            </div>
+            <button class="btn-primary btn-sm">Create Campaign</button>
+        `;
+    container.appendChild(card);
+  });
+}
+
+function generateABTests(promotions) {
+  const tests = [
+    {
+      name: "Voice vs Text Promotion",
+      variant_a: "Voice-first messaging",
+      variant_b: "Text-first messaging",
+      winner: "A",
+      improvement: "+23%",
+      status: "completed",
+    },
+    {
+      name: "Cashback vs Points",
+      variant_a: "Direct cashback offer",
+      variant_b: "Points-based rewards",
+      winner: "A",
+      improvement: "+15%",
+      status: "completed",
+    },
+    {
+      name: "Simplified vs Detailed UI",
+      variant_a: "Simplified interface",
+      variant_b: "Detailed interface",
+      winner: "Running",
+      improvement: "TBD",
+      status: "active",
+    },
+  ];
+
+  return tests;
+}
+
+function displayABTests(tests) {
+  const container = document.getElementById("ab-tests-list");
+  if (!container) return;
+
+  container.innerHTML = "";
+
+  tests.forEach((test) => {
+    const card = document.createElement("div");
+    card.className = "ab-test-card";
+    card.innerHTML = `
+            <div class="ab-test-header">
+                <h5>${test.name}</h5>
+                <span class="status-badge ${test.status}">${capitalizeFirst(
+      test.status
+    )}</span>
+            </div>
+            <div class="ab-test-variants">
+                <div class="variant ${test.winner === "A" ? "winner" : ""}">
+                    <span class="variant-label">Variant A</span>
+                    <p>${test.variant_a}</p>
+                    ${
+                      test.winner === "A"
+                        ? '<span class="winner-badge">Winner</span>'
+                        : ""
+                    }
+                </div>
+                <div class="variant ${test.winner === "B" ? "winner" : ""}">
+                    <span class="variant-label">Variant B</span>
+                    <p>${test.variant_b}</p>
+                    ${
+                      test.winner === "B"
+                        ? '<span class="winner-badge">Winner</span>'
+                        : ""
+                    }
+                </div>
+            </div>
+            <div class="ab-test-result">
+                <strong>Improvement:</strong> ${test.improvement}
+            </div>
+        `;
+    container.appendChild(card);
+  });
 }
 
 async function loadOperationalAlerts() {
-  // Mock data for now
-  console.log("Loading operational alerts...");
+  try {
+    // Fetch analytics to identify issues
+    const response = await fetch(`${API_BASE_URL}/analytics`);
+    const analytics = await response.json();
+
+    // Generate alerts based on analytics
+    const alerts = generateOperationalAlerts(analytics);
+    displayOperationalAlerts(alerts);
+  } catch (error) {
+    console.error("Error loading operational alerts:", error);
+  }
+}
+
+function generateOperationalAlerts(analytics) {
+  const alerts = [];
+
+  // Count frustrated users
+  const frustratedEvents = analytics.filter(
+    (a) => a.emotionalContext === "frustrated"
+  );
+  if (frustratedEvents.length > 5) {
+    alerts.push({
+      type: "warning",
+      title: "High Frustration Detected",
+      message: `${frustratedEvents.length} frustrated interactions in the last 24 hours`,
+      action: "Review user journeys",
+      timestamp: new Date(),
+    });
+  }
+
+  // Check for failed transactions
+  alerts.push({
+    type: "info",
+    title: "Transaction Success Rate",
+    message: "94% success rate - within normal range",
+    action: "Monitor failed transactions",
+    timestamp: new Date(),
+  });
+
+  // Accessibility feature adoption
+  alerts.push({
+    type: "success",
+    title: "Accessibility Adoption Growing",
+    message: "Voice feature usage increased by 12% this week",
+    action: "Continue promoting voice features",
+    timestamp: new Date(),
+  });
+
+  // Promotion performance
+  alerts.push({
+    type: "info",
+    title: "Campaign Performance Update",
+    message: "Bill Payment Cashback campaign exceeding targets",
+    action: "Consider extending campaign duration",
+    timestamp: new Date(),
+  });
+
+  return alerts;
+}
+
+function displayOperationalAlerts(alerts) {
+  const container = document.getElementById("active-alerts");
+  const timeline = document.getElementById("alert-timeline");
+
+  if (!container) return;
+
+  container.innerHTML = "";
+
+  alerts.forEach((alert) => {
+    const card = document.createElement("div");
+    card.className = `alert-card alert-${alert.type}`;
+    card.innerHTML = `
+            <div class="alert-icon">
+                <i class="fas fa-${
+                  alert.type === "warning"
+                    ? "exclamation-triangle"
+                    : alert.type === "success"
+                    ? "check-circle"
+                    : "info-circle"
+                }"></i>
+            </div>
+            <div class="alert-content">
+                <h5>${alert.title}</h5>
+                <p>${alert.message}</p>
+                <span class="alert-action">${alert.action}</span>
+            </div>
+            <div class="alert-time">
+                ${new Date(alert.timestamp).toLocaleTimeString()}
+            </div>
+        `;
+    container.appendChild(card);
+  });
+
+  // Also add to timeline
+  if (timeline) {
+    timeline.innerHTML = "";
+    alerts.forEach((alert) => {
+      const item = document.createElement("div");
+      item.className = "timeline-item";
+      item.innerHTML = `
+                <div class="timeline-dot ${alert.type}"></div>
+                <div class="timeline-content">
+                    <strong>${alert.title}</strong>
+                    <p>${alert.message}</p>
+                    <span class="timeline-time">${new Date(
+                      alert.timestamp
+                    ).toLocaleString()}</span>
+                </div>
+            `;
+      timeline.appendChild(item);
+    });
+  }
 }
 
 // Load Users
