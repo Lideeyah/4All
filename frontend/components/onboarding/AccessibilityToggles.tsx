@@ -289,14 +289,14 @@ export function AccessibilityToggles({
             <Button
               variant="outline"
               onClick={handleSkip}
-              className={adaptiveClasses.touchTarget}
+              className={adaptiveClasses.button}
             >
               {t.skip}
             </Button>
             
             <Button
               onClick={handleContinue}
-              className={cn(adaptiveClasses.touchTarget, "flex-1")}
+              className={cn(adaptiveClasses.button, "flex-1")}
             >
               {t.continue}
             </Button>

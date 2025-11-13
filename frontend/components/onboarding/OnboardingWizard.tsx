@@ -617,7 +617,7 @@ export function OnboardingWizard({ onComplete, skipWelcome = false, initialLangu
           )}
 
           {/* Interaction Mode Selection Step - Show if current step is interaction_mode OR if we skipped language and step is language */}
-          {(currentStep === 'interaction_mode' || (currentStep === 'language' && skipLanguageSelection)) && (
+          {( currentStep === 'disability_disclosure'  || currentStep === 'interaction_mode' || (currentStep === 'language' && skipLanguageSelection)) && (
             <div className="space-y-6">
               <div className="text-center space-y-2">
                 <h2 className={cn(adaptiveClasses.heading, "text-xl font-semibold text-text")}>
