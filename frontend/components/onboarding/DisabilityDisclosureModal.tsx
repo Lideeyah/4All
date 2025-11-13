@@ -6,8 +6,10 @@ import { Button } from '../ui/button';
 import { Checkbox } from '../ui/checkbox';
 import { useVoice } from '../../hooks/useVoice';
 import { useAdaptiveClasses } from '../../hooks/useAdaptiveUI';
+import { useProfileStore } from '../../hooks/useProfile';
 import { Check, Eye, Ear, Hand, Brain, MessageSquare, X } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import Image from 'next/image';
 
 export type DisabilityType = 'visual' | 'hearing' | 'motor' | 'cognitive' | 'speech';
 
@@ -105,6 +107,7 @@ export function DisabilityDisclosureModal({
 
   const { speak, startListening, stopListening, transcript, clearTranscript, isListening } = useVoice();
   const adaptiveClasses = useAdaptiveClasses();
+  const { setDisabilities, updateProfile } = useProfileStore();
   const t = translations[language as keyof typeof translations] || translations.en;
 
   const handleOptionSelect = (option: 'no' | 'yes' | 'prefer_not_to_say') => {
@@ -112,7 +115,7 @@ export function DisabilityDisclosureModal({
 
     if (option === 'yes') {
       setShowDetails(true);
-     // speak('Please select the areas where you need assistance. You can say: Vision for sight difficulties, Hearing for sound difficulties, Movement for touch difficulties, Focus for concentration difficulties, or Speech for communication difficulties. You can also say multiple options or none to finish.');
+      // speak('Please select the areas where you need assistance. You can say: Vision for sight difficulties, Hearing for sound difficulties, Movement for touch difficulties, Focus for concentration difficulties, or Speech for communication difficulties. You can also say multiple options or none to finish.');
     } else {
       setShowDetails(false);
       setSelectedDisabilities([]);
@@ -136,20 +139,63 @@ export function DisabilityDisclosureModal({
 
     setSelectedDisabilities(newDisabilities);
 
+    // Immediately update the profile store to trigger UI adaptations
+    setDisabilities(newDisabilities);
+    
+    // For visual impairment, immediately apply enhanced accessibility preferences
+    if (disabilityId === 'visual' && newDisabilities.includes('visual')) {
+      updateProfile({
+        disabilities: newDisabilities,
+        accessibilityPreferences: {
+          fontSize: 20,
+          contrast: 'high',
+          ttsSpeed: 1,
+          largeTargets: true,
+          captions: true,
+          font: 'atkinson',
+        },
+        uiComplexity: 'simplified'
+      });
+    } else if (disabilityId === 'visual' && !newDisabilities.includes('visual')) {
+      // Reset to moderate settings if visual is deselected
+      updateProfile({
+        disabilities: newDisabilities,
+        accessibilityPreferences: {
+          fontSize: 16,
+          contrast: 'normal',
+          ttsSpeed: 1,
+          largeTargets: false,
+          captions: false,
+          font: 'inter',
+        },
+        uiComplexity: 'moderate'
+      });
+    } else {
+      // Update just the disabilities for other types
+      updateProfile({
+        disabilities: newDisabilities
+      });
+    }
+
     const option = disabilityOptions.find(opt => opt.id === disabilityId);
     if (option) {
       const action = newDisabilities.includes(disabilityId) ? 'selected' : 'deselected';
-      
-      // Get remaining unselected options
-      const remainingOptions = disabilityOptions
-        .filter(opt => !newDisabilities.includes(opt.id))
-        .map(opt => opt.label);
-      
-      const remainingText = remainingOptions.length > 0 
-        ? `You can choose another need like ${remainingOptions.join(', ')}, or say Continue when ready.`
-        : 'Say Continue when ready.';
-      
-      speak(`${option.label} ${action}. ${remainingText}`);
+
+      // Special message for visual impairment
+      if (disabilityId === 'visual' && newDisabilities.includes('visual')) {
+        speak(`${option.label} ${action}. Your interface is now optimized for visual accessibility with larger text, high contrast, and simplified layout.`);
+      } else {
+        // Get remaining unselected options
+        const remainingOptions = disabilityOptions
+          .filter(opt => !newDisabilities.includes(opt.id))
+          .map(opt => opt.label);
+
+        const remainingText = remainingOptions.length > 0
+          ? `You can choose another need like ${remainingOptions.join(', ')}, or say Continue when ready.`
+          : 'Say Continue when ready.';
+
+        speak(`${option.label} ${action}. ${remainingText}`);
+      }
     }
   };
 
@@ -285,7 +331,8 @@ export function DisabilityDisclosureModal({
 
   return (
     <div className="fixed inset-0 bg-white flex items-start justify-start z-50 ">
-      <Card className="w-screen max-w-2xl max-h-[90vh] overflow-y-auto bg-white">
+      <Card className="w-screen max-w-2xl max-h-[90vh]  h-full border-none shadow-none overflow-y-auto ">
+       
         <div className="p-6 space-y-6">
           {/* Voice Control Status */}
           {transcript && isListening && (
@@ -294,6 +341,15 @@ export function DisabilityDisclosureModal({
             </p>
           )}
 
+ <div className="flex justify-center mb-6 max-h-[8rem]">
+          <Image
+            src="/logo.png"
+            alt="4All Banking Logo"
+            width={1000}
+            height={1000}
+            className="rounded-xl w-[15rem] h-full object-contain"
+          />
+        </div>
           {/* Header */}
           <div className="flex justify-between items-start">
             <div className="space-y-2 flex-1">

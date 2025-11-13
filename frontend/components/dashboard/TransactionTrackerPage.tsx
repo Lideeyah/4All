@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,7 +23,8 @@ import {
   AlertCircle,
   RefreshCw,
   ArrowUpRight,
-  ArrowDownLeft
+  ArrowDownLeft,
+  ArrowLeft
 } from 'lucide-react';
 
 interface Transaction {
@@ -61,6 +63,7 @@ export function TransactionTrackerPage() {
   const [isListening, setIsListening] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
+  const router = useRouter();
   const profile = useProfile();
   const language = useLanguage();
   const interactionMode = useInteractionMode();
@@ -348,19 +351,30 @@ export function TransactionTrackerPage() {
     <div className="space-y-6 p-4" style={{ fontSize: adaptiveUI.fontSize.base }}>
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1
-            className="text-3xl font-bold text-gray-900"
-            style={{ fontSize: adaptiveUI.fontSize.xl }}
+        <div className="flex items-center gap-4">
+          <Button
+            onClick={() => router.back()}
+            variant="outline"
+            size="sm"
+            className="flex items-center gap-2"
           >
-            Transaction Tracker
-          </h1>
-          <p
-            className="text-gray-600 mt-1"
-            style={{ fontSize: adaptiveUI.fontSize.sm }}
-          >
-            Track and search your transaction history
-          </p>
+            <ArrowLeft className="w-4 h-4" />
+            Back
+          </Button>
+          <div>
+            <h1
+              className="text-3xl font-bold text-gray-900"
+              style={{ fontSize: adaptiveUI.fontSize.xl }}
+            >
+              Transaction Tracker
+            </h1>
+            <p
+              className="text-gray-600 mt-1"
+              style={{ fontSize: adaptiveUI.fontSize.sm }}
+            >
+              Track and search your transaction history
+            </p>
+          </div>
         </div>
 
         <Button
