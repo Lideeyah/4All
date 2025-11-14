@@ -11,9 +11,11 @@ import { useAdaptiveClasses } from '../../hooks/useAdaptiveUI';
 import { useOnboardingProgress } from '../../hooks/useOnboardingProgress';
 import { DisabilityDisclosureModal, DisabilityType } from './DisabilityDisclosureModal';
 import { NeurodivergentQuiz } from './NeurodivergentQuiz';
+import { PersonalDataCollection } from './PersonalDataCollection';
 import { AccessibilityToggles } from './AccessibilityToggles';
 import { Globe, Mic, MessageSquare, ArrowRight, CheckCircle } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import Image from 'next/image';
 
 interface LanguageOption {
   code: string;
@@ -95,6 +97,7 @@ export function OnboardingWizard({ onComplete, skipWelcome = false, initialLangu
   // Component state
   const [showDisabilityModal, setShowDisabilityModal] = useState(false);
   const [showQuizModal, setShowQuizModal] = useState(false);
+  const [showPersonalDataModal, setShowPersonalDataModal] = useState(false);
   const [showTogglesModal, setShowTogglesModal] = useState(false);
   const [selectedLanguage, setSelectedLanguage] = useState(initialLanguage || 'en');
 
@@ -356,22 +359,11 @@ export function OnboardingWizard({ onComplete, skipWelcome = false, initialLangu
     updateDisabilities(disabilities);
     updateStep('disability_disclosure', { disabilities, skipAssistance });
 
-    // If cognitive difficulty is selected or we need a quiz, show it
-    const needsQuiz = disabilities.includes('cognitive') || (!skipAssistance && disabilities.length > 0);
-
-    if (needsQuiz && !skipAssistance) {
-      setTimeout(() => {
-        setShowQuizModal(true);
-        nextStep();
-      }, 500);
-    } else {
-      // Skip quiz, move to toggles
-      setTimeout(() => {
-        setShowTogglesModal(true);
-        nextStep();
-        nextStep(); // Skip quiz step
-      }, 500);
-    }
+    // Always move to accessibility toggles next (following the new step order)
+    setTimeout(() => {
+      setShowTogglesModal(true);
+      nextStep();
+    }, 500);
   };
 
   // Quiz completion
@@ -380,11 +372,27 @@ export function OnboardingWizard({ onComplete, skipWelcome = false, initialLangu
     updateCognitiveScore(score);
     updateStep('cognitive_quiz', { score, responses, recommendations });
 
-    // Move to accessibility toggles
+    // Move to personal data collection
     setTimeout(() => {
-      setShowTogglesModal(true);
+      setShowPersonalDataModal(true);
       nextStep();
     }, 500);
+  };
+
+  // Personal data collection
+  const handlePersonalDataComplete = (data: { name: string; email: string; phone: string }) => {
+    setShowPersonalDataModal(false);
+    
+    // Update profile with personal information, preserving existing disabilities
+    updateProfile({
+      name: data.name,
+      phone: data.phone
+    });
+    
+    updateStep('personal_data', { name: data.name, email: data.email, phone: data.phone });
+
+    // Complete onboarding
+    handleCompleteOnboarding();
   };
 
   // Accessibility toggles
@@ -393,8 +401,11 @@ export function OnboardingWizard({ onComplete, skipWelcome = false, initialLangu
     updateAccessibilityToggles(toggles);
     updateStep('accessibility_toggles', { toggles });
 
-    // Complete onboarding
-    handleCompleteOnboarding();
+    // Move to cognitive quiz
+    setTimeout(() => {
+      setShowQuizModal(true);
+      nextStep();
+    }, 500);
   };
 
   // Complete onboarding
@@ -447,8 +458,16 @@ export function OnboardingWizard({ onComplete, skipWelcome = false, initialLangu
   }, [currentStep, progress, skipLanguageSelection]);
 
   return (
-    <div className="min-h-screen min-w-screen bg-white flex ">
-
+    <div className="min-h-screen min-w-screen bg-white flex flex-col ">
+      <div className="flex justify-center mb-6 max-h-[8rem]">
+        <Image
+          src="/logo.png"
+          alt="4All Banking Logo"
+          width={1000}
+          height={1000}
+          className="rounded-xl w-[15rem] h-full object-contain"
+        />
+      </div>
       {/* Disability Disclosure Modal */}
       <DisabilityDisclosureModal
         isOpen={showDisabilityModal}
@@ -465,17 +484,24 @@ export function OnboardingWizard({ onComplete, skipWelcome = false, initialLangu
         language={selectedLanguage}
       />
 
+      {/* Personal Data Collection Modal */}
+      <PersonalDataCollection
+        isOpen={showPersonalDataModal}
+        onClose={() => setShowPersonalDataModal(false)}
+        onSubmit={handlePersonalDataComplete}
+        language={selectedLanguage}
+      />
+
       {/* Accessibility Toggles Modal */}
       <AccessibilityToggles
         isOpen={showTogglesModal}
-        onClose={() => setShowTogglesModal(false)}
         onComplete={handleTogglesComplete}
         disabilities={progress?.disabilities || []}
         language={selectedLanguage}
       />
 
       {/* Main Content */}
-      <Card className="w-screen max-w-screen bg-white shadow-xl">
+      <Card className="w-screen max-w-screen bg-white h-full border-none">
         <div className="p-8 space-y-8">
           {/* Header */}
           <div className="text-center space-y-4">
@@ -634,6 +660,7 @@ export function OnboardingWizard({ onComplete, skipWelcome = false, initialLangu
           {/* Interaction Mode Selection Step - Show if current step is interaction_mode OR if we skipped language and step is language */}
           {(currentStep === 'disability_disclosure' || currentStep === 'interaction_mode' || (currentStep === 'language' && skipLanguageSelection)) && (
             <div className="space-y-6">
+              
               <div className="text-center space-y-2">
                 <h2 className={cn(adaptiveClasses.heading, "text-xl font-semibold text-text")}>
                   {t.interaction_title}

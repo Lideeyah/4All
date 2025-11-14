@@ -32,6 +32,7 @@ const defaultSteps: OnboardingStep[] = [
   { id: 'disability_disclosure', title: 'Accessibility Preferences', completed: false },
   { id: 'accessibility_toggles', title: 'Quick Setup', completed: false },
   { id: 'cognitive_quiz', title: 'Personalization Quiz', completed: false },
+  { id: 'personal_data', title: 'Personal Information', completed: false },
   { id: 'summary', title: 'Setup Complete', completed: false }
 ];
 

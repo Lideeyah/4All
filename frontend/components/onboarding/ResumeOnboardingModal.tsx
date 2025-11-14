@@ -118,7 +118,7 @@ export function ResumeOnboardingModal({
           <div className="space-y-3">
             <Button
               onClick={handleResume}
-              className={cn(adaptiveClasses.touchTarget, "w-full")}
+              className={cn(adaptiveClasses.button, "w-full")}
               size="lg"
             >
               <Play className="h-4 w-4 mr-2" />
@@ -128,7 +128,7 @@ export function ResumeOnboardingModal({
             <Button
               variant="outline"
               onClick={handleStartOver}
-              className={cn(adaptiveClasses.touchTarget, "w-full")}
+              className={cn(adaptiveClasses.button, "w-full")}
               size="lg"
             >
               <RotateCcw className="h-4 w-4 mr-2" />
