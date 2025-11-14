@@ -32,31 +32,31 @@ export function BankSignin() {
     <div className="min-h-screen bg-bg-white flex items-center justify-center p-6">
       <div className="max-w-lg w-full text-center space-y-8">
         {/* Bank Logo/Title */}
-        <div>
+        {/* <div>
           <h1 className="text-2xl font-bold text-text mb-2">Zenith Bank</h1>
           <div className="flex items-center justify-center gap-2 mb-4">
             <CheckCircle className="w-6 h-6 text-success" />
             <h2 className="text-lg font-medium text-text">Account Setup Complete</h2>
           </div>
-        </div>
+        </div> */}
 
         {/* Account Info */}
-        <div className="bg-white border border-border rounded-lg p-6 space-y-4">
+        {/* <div className="bg-white border border-border rounded-lg p-6 space-y-4">
           <div className="text-sm text-muted-gray">
             <p>Account: <span className="font-mono text-text">2051234567</span></p>
             <p>Balance: <span className="font-semibold text-success">₦0.00</span></p>
           </div>
-        </div>
+        </div> */}
 
         {/* 4All Invitation */}
-        <div className="space-y-4">
-          <div className="flex justify-center mb-6 max-h-[8rem]">
+        <div className="space-y-4 mt-[-3rem]">
+          <div className="flex justify-center mb-6 max-h-[10rem]">
             <Image
               src="/logo.png"
               alt="4All Banking Logo"
               width={1000}
               height={1000}
-              className="rounded-xl w-[15rem] h-full object-contain"
+              className="rounded-xl w-[22rem] h-full object-contain"
             />
           </div>
 
